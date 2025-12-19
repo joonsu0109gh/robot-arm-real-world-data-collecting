@@ -14,6 +14,11 @@ It supports **Franka Research 3 (FR3)** control, **Xbox controller teleoperation
 
   👉 [https://github.com/real-stanford/diffusion_policy?tab=readme-ov-file#-real-robot](https://github.com/real-stanford/diffusion_policy?tab=readme-ov-file#-real-robot)
 
+* **ManiWAV**
+  This repository is based on the official Diffusion Policy implementation for real robots:
+
+  👉 [https://github.com/real-stanford/maniwav/tree/main](https://github.com/real-stanford/maniwav/tree/main)
+
 * **Franky (Franka robot control library)**
   Robot control is implemented using the Franky library:
 
@@ -24,13 +29,17 @@ Please follow the installation instructions in the above repositories before run
 ---
 
 ## Updates
-
+### ver 0.1
 * ✅ Added **Franka Research 3 (FR3)** control support
 * ✅ Added **depth data collection** (optional, can be enabled/disabled)
 * ✅ Added **Xbox controller teleoperation**
 * ✅ Added **gripper control** and gripper state logging
 
   * Gripper state is stored in the **last index of the end-effector (EEF) pose**
+
+### ver 0.2
+ * ✅ Added **Realsense D405** support
+ * ✅ Fix **Franka Research 3 (FR3)** control delay
 
 **Depth data collection example:**
 
@@ -42,10 +51,10 @@ Please follow the installation instructions in the above repositories before run
 
 ```bash
 python demo_real_robot.py \
-  -o  \
-  --robot_ip  \
-  --teleop_mode  \
-  --robot_model 
+  --output {path/to/data/dir} \
+  --robot_ip  {@@@.@@@.@@@.@@@} \
+  --teleop_mode {xbox_controller}\
+  --robot_model {fr3}
 ```
 
 ### Arguments

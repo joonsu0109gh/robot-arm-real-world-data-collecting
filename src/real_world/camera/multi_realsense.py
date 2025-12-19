@@ -5,8 +5,8 @@ import pathlib
 from multiprocessing.managers import SharedMemoryManager
 import numpy as np
 import pyrealsense2 as rs
-from src.real_world.single_realsense import SingleRealsense
-from src.real_world.video_recorder import VideoRecorder
+from src.real_world.camera.single_realsense import SingleRealsense
+from src.real_world.camera.video_recorder import VideoRecorder
 
 class MultiRealsense:
     def __init__(self,

@@ -3,7 +3,7 @@ import multiprocessing as mp
 import numpy as np
 import cv2
 from threadpoolctl import threadpool_limits
-from src.real_world.multi_realsense import MultiRealsense
+from src.real_world.camera.multi_realsense import MultiRealsense
 
 class MultiCameraVisualizer(mp.Process):
     def __init__(self,

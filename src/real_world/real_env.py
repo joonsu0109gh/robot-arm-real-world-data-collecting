@@ -5,17 +5,21 @@ import time
 import shutil
 import math
 from multiprocessing.managers import SharedMemoryManager
-from src.real_world.multi_realsense import MultiRealsense, SingleRealsense
-from src.real_world.video_recorder import VideoRecorder
+from src.real_world.camera.multi_realsense import MultiRealsense, SingleRealsense
+from src.real_world.camera.video_recorder import VideoRecorder
 from src.common.timestamp_accumulator import (
     TimestampObsAccumulator, 
     TimestampActionAccumulator,
     align_timestamps
 )
-from src.real_world.multi_camera_visualizer import MultiCameraVisualizer
+from src.real_world.camera.multi_camera_visualizer import MultiCameraVisualizer
 from src.common.replay_buffer import ReplayBuffer
 from src.common.cv2_util import (
     get_image_transform, optimal_row_cols)
+
+from src.real_world.microphone.mic import Microphone
+from src.real_world.microphone.audio_recorder import AudioRecorder
+
 
 DEFAULT_OBS_KEY_MAP = {
     # robot
@@ -51,6 +55,12 @@ class RealEnv:
             # video capture params
             video_capture_fps=30,
             video_capture_resolution=(640,480),
+            # audio capture params
+            audio_device_id=0,
+            audio_channels=2,
+            audio_sr=48000,
+            block_size=800,
+            audio_n_obs_steps=20,
             # saving params
             record_raw_video=True,
             thread_per_video=2,
@@ -61,7 +71,9 @@ class RealEnv:
             # shared memory
             shm_manager=None,
             robot_model=None,
-            enable_depth=True
+            # options
+            enable_depth=True,
+            enable_audio=True
             ):
         assert frequency <= video_capture_fps
         output_dir = pathlib.Path(output_dir)
@@ -151,6 +163,27 @@ class RealEnv:
                 rgb_to_bgr=False
             )
 
+        audio_recorder = AudioRecorder(
+            shm_manager=shm_manager,
+            put_fps=(audio_sr // block_size) * 2,
+            sr=audio_sr,
+            device=audio_device_id, 
+            num_channel=audio_channels,
+            codec='aac',
+            input_audio_fmt='fltp'
+        )
+        microphone = Microphone(            
+            shm_manager=shm_manager,
+            get_max_k=120, # NOTE(@liuzeyi): don't hardcode this?
+            device_id=audio_device_id,
+            num_channel=audio_channels,
+            block_size=block_size,
+            audio_sr=audio_sr,
+            put_downsample=False,
+            audio_recorder=audio_recorder)
+
+
+
         cube_diag = np.linalg.norm([1,1,1])
         if robot_model == 'ur5':
             j_init = np.array([0,-90,-90,-90,90,0]) / 180 * np.pi
@@ -160,7 +193,7 @@ class RealEnv:
         if not init_joints:
             j_init = None
         if robot_model == 'ur5':
-            from src.real_world.rtde_interpolation_controller import RTDEInterpolationController
+            from src.real_world.robot.rtde_interpolation_controller import RTDEInterpolationController
             robot = RTDEInterpolationController(
                 shm_manager=shm_manager,
                 robot_ip=robot_ip,
@@ -182,7 +215,7 @@ class RealEnv:
                 )
             pass
         elif robot_model == 'fr3':
-            from src.real_world.franka_controller import FR3PositionalController
+            from src.real_world.robot.franka_controller import FR3PositionalController
             robot = FR3PositionalController(
                 shm_manager=shm_manager,
                 robot_ip=robot_ip,
@@ -203,8 +236,10 @@ class RealEnv:
                 get_max_k=max_obs_buffer_size)
         else:
             raise ValueError(f'Unknown robot model: {robot_model}')
+
         self.realsense = realsense
         self.robot = robot
+
         self.multi_cam_vis = multi_cam_vis
         self.video_capture_fps = video_capture_fps
         self.frequency = frequency
@@ -226,6 +261,17 @@ class RealEnv:
 
         self.start_time = None
     
+        # audio capture params
+        self.microphone = microphone
+        self.audio_n_obs_steps = audio_n_obs_steps
+        self.replay_buffer = replay_buffer
+        self.audio_device_id = audio_device_id
+        self.audio_channels = audio_channels
+        self.audio_sr = audio_sr
+        self.block_size = block_size
+        self.last_microphone_data = None
+        self.gripper_obs_accumulator = None
+        self.action_accumulator = None
     # ======== start-stop API =============
     @property
     def is_ready(self):

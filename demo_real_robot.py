@@ -23,14 +23,12 @@ import cv2
 import numpy as np
 import scipy.spatial.transform as st
 from src.real_world.real_env import RealEnv
-from src.real_world.spacemouse_shared_memory import Spacemouse
-from src.real_world.xbox_controller_shared_memory import XboxController
 from src.common.precise_sleep import precise_wait
 from src.real_world.keystroke_counter import (
     KeystrokeCounter, Key, KeyCode
 )
 
-# python demo_real_robot.py -o /home/rvi/data_collecting_pipeline/data --robot_ip 172.16.0.2 --teleop_mode xbox_controller --robot_model fr3
+# python demo_real_robot.py --output /home/rvi/data_collecting_pipeline/data --robot_ip 172.16.0.2 --teleop_mode xbox_controller --robot_model fr3
 @click.command()
 @click.option('--output', '-o', required=True, help="Directory to save demonstration dataset.")
 @click.option('--robot_ip', '-ri', required=True, help="UR5's IP address e.g. 192.168.0.204")
@@ -39,14 +37,16 @@ from src.real_world.keystroke_counter import (
 @click.option('--frequency', '-f', default=20, type=float, help="Control frequency in Hz.")
 @click.option('--command_latency', '-cl', default=0.01, type=float, help="Latency between receiving SapceMouse command to executing on Robot in Sec.")
 @click.option('--teleop_mode', '-t', default='xbox_controller', type=click.Choice(['xbox_controller', 'spacemouse', 'meta_quest_3']), help="Teleoperation mode.")
-@click.option('--robot_model', '-r', default='franka', type=click.Choice(['ur5', 'fr3', 'xarm']), help="Robot type.")
-@click.option('--enable_depth', '-d', default=0, type=click.Choice([0, 1]), help="Depth camera on/off.")
+@click.option('--robot_model', '-r', default='fr3', type=click.Choice(['ur5', 'fr3', 'xarm']), help="Robot type.")
+@click.option('--enable_depth', '-d', default=1, type=click.Choice([0, 1]), help="Depth camera on/off.")
 def main(output, robot_ip, vis_camera_idx, init_joints, frequency, command_latency, teleop_mode, robot_model, enable_depth):
     dt = 1/frequency
     # Select controller class based on teleop_mode
     if teleop_mode == "spacemouse":
+        from src.real_world.controller.teleop_device.spacemouse_shared_memory import Spacemouse
         ControllerClass = Spacemouse
     elif teleop_mode == "xbox_controller":
+        from src.real_world.controller.teleop_device.xbox_controller_shared_memory import XboxController
         ControllerClass = XboxController 
     # elif teleop == "vr":
     #     ControllerClass = VRController
@@ -73,15 +73,20 @@ def main(output, robot_ip, vis_camera_idx, init_joints, frequency, command_laten
                 robot_model=robot_model,
                 enable_depth=enable_depth
             ) as env:
-            print('Setting up the real robot environment...')
-            time.sleep(2.0)
 
             cv2.setNumThreads(1)
 
-            # realsense exposure
-            env.realsense.set_exposure(exposure=120, gain=0)
-            # realsense white balance
-            env.realsense.set_white_balance(white_balance=5900)
+            # # realsense exposure
+            # env.realsense.set_exposure(exposure=250, gain=20)
+            # # realsense white balance
+            # env.realsense.set_white_balance(white_balance=5900)
+
+            # auto exposure and white balance (due to D405 limitations)
+            env.realsense.set_exposure(exposure=None, gain=None)
+            env.realsense.set_white_balance(white_balance=None)
+
+            print('Setting up the real robot environment...')
+            time.sleep(4.0)
 
             time.sleep(1.0)
             print('Ready!')

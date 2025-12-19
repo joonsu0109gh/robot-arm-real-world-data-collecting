@@ -13,7 +13,7 @@ from src.common.timestamp_accumulator import get_accumulate_timestamp_idxs
 from src.shared_memory.shared_ndarray import SharedNDArray
 from src.shared_memory.shared_memory_ring_buffer import SharedMemoryRingBuffer
 from src.shared_memory.shared_memory_queue import SharedMemoryQueue, Full, Empty
-from src.real_world.video_recorder import VideoRecorder
+from src.real_world.camera.video_recorder import VideoRecorder
 
 class Command(enum.Enum):
     SET_COLOR_OPTION = 0
@@ -220,7 +220,6 @@ class SingleRealsense(mp.Process):
         exposure: (1, 10000) 100us unit. (0.1 ms, 1/10000s)
         gain: (0, 128)
         """
-
         if exposure is None and gain is None:
             # auto exposure
             self.set_color_option(rs.option.enable_auto_exposure, 1.0)
@@ -307,7 +306,14 @@ class SingleRealsense(mp.Process):
 
             # report global time
             # https://github.com/IntelRealSense/librealsense/pull/3909
-            d = pipeline_profile.get_device().first_color_sensor()
+            d = pipeline_profile.get_device()
+            device_name = d.get_info(rs.camera_info.name)
+
+            if device_name[-2:] == '05':
+                d = pipeline_profile.get_device().first_depth_sensor()
+            else: 
+                d = pipeline_profile.get_device().first_color_sensor()
+
             d.set_option(rs.option.global_time_enabled, 1)
 
             # setup advanced mode
@@ -466,18 +472,29 @@ class SingleRealsense(mp.Process):
                         command[key] = value[i]
                     cmd = command['cmd']
                     if cmd == Command.SET_COLOR_OPTION.value:
-                        sensor = pipeline_profile.get_device().first_color_sensor()
-                        option = rs.option(command['option_enum'])
-                        value = float(command['option_value'])
-                        sensor.set_option(option, value)
-                        # print('auto', sensor.get_option(rs.option.enable_auto_exposure))
-                        # print('exposure', sensor.get_option(rs.option.exposure))
-                        # print('gain', sensor.get_option(rs.option.gain))
+                        if device_name[-2:] == '05':    # TODO: find optimal value for D405 (range is differnet from D435)
+                            sensor = pipeline_profile.get_device().first_depth_sensor()
+                            option = rs.option(command['option_enum'])
+                            value = float(command['option_value'])
+                            sensor.set_option(option, value)
+                        else:
+                            sensor = pipeline_profile.get_device().first_color_sensor()
+                            option = rs.option(command['option_enum'])
+                            value = float(command['option_value'])
+                            sensor.set_option(option, value)
+
                     elif cmd == Command.SET_DEPTH_OPTION.value:
-                        sensor = pipeline_profile.get_device().first_depth_sensor()
-                        option = rs.option(command['option_enum'])
-                        value = float(command['option_value'])
-                        sensor.set_option(option, value)
+                        if device_name[-2:] == '05':
+                            sensor = pipeline_profile.get_device().first_depth_sensor()
+                            option = rs.option(command['option_enum'])
+                            value = float(command['option_value'])
+                            sensor.set_option(option, value)
+                        else:
+                            sensor = pipeline_profile.get_device().first_depth_sensor()
+                            option = rs.option(command['option_enum'])
+                            value = float(command['option_value'])
+                            sensor.set_option(option, value)
+
                     elif cmd == Command.START_RECORDING.value:
                         video_path = str(command['video_path'])
                         start_time = command['recording_start_time']

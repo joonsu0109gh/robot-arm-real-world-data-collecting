@@ -3,3 +3,4 @@ evdev
 click=8.0.4
 zarr=2.12.0
 dm-control==1.0.9
+soundfile
