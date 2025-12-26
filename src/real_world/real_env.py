@@ -19,7 +19,7 @@ from src.common.cv2_util import (
 
 from src.real_world.microphone.mic import Microphone
 from src.real_world.microphone.audio_recorder import AudioRecorder
-
+from src.real_world.robot.franka_gripper_controller import FrankaGripperController
 
 DEFAULT_OBS_KEY_MAP = {
     # robot
@@ -27,6 +27,10 @@ DEFAULT_OBS_KEY_MAP = {
     'ActualTCPSpeed': 'robot_eef_pose_vel',
     'ActualQ': 'robot_joint',
     'ActualQd': 'robot_joint_vel',
+    # gripper
+    'gripper_position': 'gripper_position',
+    'gripper_velocity': 'gripper_velocity',
+    'gripper_force': 'gripper_force',
     # timestamps
     'step_idx': 'step_idx',
     'timestamp': 'timestamp'
@@ -37,11 +41,14 @@ class RealEnv:
             # required params
             output_dir,
             robot_ip,
+            gripper_ip,
+            gripper_port=4243,
             # env params
             frequency=10,
             n_obs_steps=2,
+            audio_n_obs_steps=20,
             # obs
-            obs_image_resolution=(640,480),
+            obs_image_resolution=(256,256),
             max_obs_buffer_size=30,
             camera_serial_numbers=None,
             obs_key_map=DEFAULT_OBS_KEY_MAP,
@@ -87,9 +94,11 @@ class RealEnv:
         if shm_manager is None:
             shm_manager = SharedMemoryManager()
             shm_manager.start()
+
         if camera_serial_numbers is None:
             camera_serial_numbers = SingleRealsense.get_connected_devices_serial()
 
+        
         color_tf = get_image_transform(
             input_res=video_capture_resolution,
             output_res=obs_image_resolution, 
@@ -154,15 +163,6 @@ class RealEnv:
             verbose=False
             )
         
-        multi_cam_vis = None
-        if enable_multi_cam_vis:
-            multi_cam_vis = MultiCameraVisualizer(
-                realsense=realsense,
-                row=row,
-                col=col,
-                rgb_to_bgr=False
-            )
-
         audio_recorder = AudioRecorder(
             shm_manager=shm_manager,
             put_fps=(audio_sr // block_size) * 2,
@@ -182,7 +182,14 @@ class RealEnv:
             put_downsample=False,
             audio_recorder=audio_recorder)
 
-
+        multi_cam_vis = None
+        if enable_multi_cam_vis:
+            multi_cam_vis = MultiCameraVisualizer(
+                realsense=realsense,
+                row=row,
+                col=col,
+                rgb_to_bgr=False
+            )
 
         cube_diag = np.linalg.norm([1,1,1])
         if robot_model == 'ur5':
@@ -192,6 +199,7 @@ class RealEnv:
 
         if not init_joints:
             j_init = None
+            
         if robot_model == 'ur5':
             from src.real_world.robot.rtde_interpolation_controller import RTDEInterpolationController
             robot = RTDEInterpolationController(
@@ -215,31 +223,29 @@ class RealEnv:
                 )
             pass
         elif robot_model == 'fr3':
-            from src.real_world.robot.franka_controller import FR3PositionalController
-            robot = FR3PositionalController(
-                shm_manager=shm_manager,
-                robot_ip=robot_ip,
-                frequency=125,
-                lookahead_time=0.1,
-                gain=300,
-                max_pos_speed=max_pos_speed*cube_diag,
-                max_rot_speed=max_rot_speed*cube_diag,
-                launch_timeout=3,
-                tcp_offset_pose=[0,0,tcp_offset,0,0,0],
-                payload_mass=None,
-                payload_cog=None,
-                joints_init=j_init,
-                joints_init_speed=1.05,
-                soft_real_time=False,
-                verbose=False,
-                receive_keys=None,
-                get_max_k=max_obs_buffer_size)
+            from src.real_world.robot.franka_interpolation_controller import FrankaInterpolationController
+            robot = FrankaInterpolationController(
+            shm_manager=shm_manager,
+            robot_ip=robot_hostname,
+            frequency=100,
+            Kx_scale=5.0,
+            Kxd_scale=2.0,
+            verbose=False
+        )
         else:
             raise ValueError(f'Unknown robot model: {robot_model}')
 
+        gripper = FrankaGripperController(
+            shm_manager=shm_manager,
+            nuc_ip=gripper_ip,
+            nuc_port=gripper_port,
+            use_meters=False,
+            verbose=False,
+        )
+
         self.realsense = realsense
         self.robot = robot
-
+        self.gripper = gripper
         self.multi_cam_vis = multi_cam_vis
         self.video_capture_fps = video_capture_fps
         self.frequency = frequency
@@ -255,9 +261,10 @@ class RealEnv:
         # temp memory buffers
         self.last_realsense_data = None
         # recording buffers
-        self.obs_accumulator = None
+        self.robot_obs_accumulator = None
         self.action_accumulator = None
         self.stage_accumulator = None
+        self.gripper_obs_accumulator = None
 
         self.start_time = None
     
@@ -275,11 +282,13 @@ class RealEnv:
     # ======== start-stop API =============
     @property
     def is_ready(self):
-        return self.realsense.is_ready and self.robot.is_ready
+        return self.realsense.is_ready and self.robot.is_ready and self.gripper.is_ready and self.microphone.is_ready
     
     def start(self, wait=True):
         self.realsense.start(wait=False)
         self.robot.start(wait=False)
+        self.gripper.start(wait=False)
+        self.microphone.start(wait=False)
         if self.multi_cam_vis is not None:
             self.multi_cam_vis.start(wait=False)
         if wait:
@@ -291,18 +300,26 @@ class RealEnv:
             self.multi_cam_vis.stop(wait=False)
         self.robot.stop(wait=False)
         self.realsense.stop(wait=False)
+        self.gripper.stop(wait=False)
+        self.microphone.stop(wait=False)
+
         if wait:
             self.stop_wait()
 
     def start_wait(self):
         self.realsense.start_wait()
         self.robot.start_wait()
+        self.microphone.start_wait()
+        self.gripper.start_wait()
         if self.multi_cam_vis is not None:
             self.multi_cam_vis.start_wait()
     
     def stop_wait(self):
         self.robot.stop_wait()
         self.realsense.stop_wait()
+        self.gripper.stop_wait()
+        self.microphone.end_wait()
+
         if self.multi_cam_vis is not None:
             self.multi_cam_vis.stop_wait()
 
@@ -326,9 +343,20 @@ class RealEnv:
             k=k, 
             out=self.last_realsense_data)
 
+        # 48000 Hz, audio receive timestamp
+        if self.audio_n_obs_steps:
+            k = math.ceil((4800 / self.block_size) * self.audio_n_obs_steps)
+            self.last_microphone_data = self.microphone.get(
+                k=k,
+                out=self.last_microphone_data
+            )
+
         # 125 hz, robot_receive_timestamp
         last_robot_data = self.robot.get_all_state()
         # both have more than n_obs_steps data
+
+        # gripper_receive_timestamp
+        last_gripper_data = self.gripper.get_all_state()
 
         # align camera obs timestamps
         dt = 1 / self.frequency
@@ -347,6 +375,23 @@ class RealEnv:
                 this_idxs.append(this_idx)
             # remap key
             camera_obs[f'camera_{camera_idx}'] = value['color'][this_idxs]
+
+        mic_obs = dict()
+        if self.last_microphone_data:
+            mic_timestamps = self.last_microphone_data['timestamp']
+            # audio_block: 120 x 800 x 2 -> 20 x 4800 x 2
+            audio_block = self.last_microphone_data['audio_block']
+            audio_block_reshaped = np.zeros((20, 4800, 2))
+            for i in range(len(audio_block)//6):
+                tmp = None
+                for audio_np in audio_block[i*6:i*6+6]:
+                    if tmp is None:
+                        tmp = audio_np
+                    else:
+                        tmp = np.concatenate((tmp, audio_np))
+                audio_block_reshaped[i] = tmp
+            mic_obs['mic_0'] = audio_block_reshaped[:, :, 0]
+            mic_obs['mic_1'] = audio_block_reshaped[:, :, 1]
 
         # align robot obs
         robot_timestamps = last_robot_data['robot_receive_timestamp']
@@ -368,16 +413,43 @@ class RealEnv:
         for k, v in robot_obs_raw.items():
             robot_obs[k] = v[this_idxs]
 
+        # align gripper obs
+        gripper_timestamps = last_gripper_data['gripper_receive_timestamp']
+        this_timestamps = gripper_timestamps
+        this_idxs = list()
+        for t in obs_align_timestamps:
+            is_before_idxs = np.nonzero(this_timestamps < t)[0]
+            this_idx = 0
+            if len(is_before_idxs) > 0:
+                this_idx = is_before_idxs[-1]
+            this_idxs.append(this_idx)
+        
+        gripper_obs_raw = dict()
+        for k, v in last_gripper_data.items():
+            if k in self.obs_key_map:
+                gripper_obs_raw[self.obs_key_map[k]] = v
+        
+        gripper_obs = dict()
+        for k, v in gripper_obs_raw.items():
+            gripper_obs[k] = v[this_idxs]
+
         # accumulate obs
-        if self.obs_accumulator is not None:
-            self.obs_accumulator.put(
+        if self.robot_obs_accumulator is not None:
+            self.robot_obs_accumulator.put(
                 robot_obs_raw,
                 robot_timestamps
+            )
+        if self.gripper_obs_accumulator is not None:
+            self.gripper_obs_accumulator.put(
+                gripper_obs_raw,
+                gripper_timestamps
             )
 
         # return obs
         obs_data = dict(camera_obs)
+        obs_data.update(mic_obs)
         obs_data.update(robot_obs)
+        obs_data.update(gripper_obs)
         obs_data['timestamp'] = obs_align_timestamps
         return obs_data
     
@@ -404,9 +476,15 @@ class RealEnv:
 
         # schedule waypoints
         for i in range(len(new_actions)):
+            r_actions = new_actions[i,:6]
+            g_actions = new_actions[i,6:] + 1
             self.robot.schedule_waypoint(
-                pose=new_actions[i],
+                pose=r_actions,
                 target_time=new_timestamps[i]
+            )
+            self.gripper.schedule_waypoint(
+                pos=g_actions,
+                target_time=new_timestamps[i]-0.02
             )
         
         # record actions
@@ -447,8 +525,19 @@ class RealEnv:
         self.realsense.restart_put(start_time=start_time)
         self.realsense.start_recording(video_path=video_paths, start_time=start_time)
 
+
+        audio_path = str(this_video_dir.joinpath('audio.wav').absolute())
+        # start recording on microphone
+        self.microphone.restart_put(start_time=start_time)
+        self.microphone.start_recording(audio_path=audio_path, start_time=start_time)
+
+
         # create accumulators
-        self.obs_accumulator = TimestampObsAccumulator(
+        self.robot_obs_accumulator = TimestampObsAccumulator(
+            start_time=start_time,
+            dt=1/self.frequency
+        )
+        self.gripper_obs_accumulator = TimestampObsAccumulator(
             start_time=start_time,
             dt=1/self.frequency
         )
@@ -468,17 +557,22 @@ class RealEnv:
         
         # stop video recorder
         self.realsense.stop_recording()
+        self.microphone.stop_recording()
 
-        if self.obs_accumulator is not None:
+        if self.robot_obs_accumulator is not None:
             # recording
             assert self.action_accumulator is not None
             assert self.stage_accumulator is not None
+            assert self.gripper_obs_accumulator is not None
 
             # Since the only way to accumulate obs and action is by calling
             # get_obs and exec_actions, which will be in the same thread.
             # We don't need to worry new data come in here.
-            obs_data = self.obs_accumulator.data
-            obs_timestamps = self.obs_accumulator.timestamps
+            robot_obs_data = self.robot_obs_accumulator.data
+            robot_obs_timestamps = self.robot_obs_accumulator.timestamps
+
+            gripper_obs_data = self.gripper_obs_accumulator.data
+            gripper_obs_timestamps = self.gripper_obs_accumulator.timestamps
 
             actions = self.action_accumulator.actions
             action_timestamps = self.action_accumulator.timestamps
@@ -491,13 +585,16 @@ class RealEnv:
                 episode['stage'] = stages[:n_steps]
                 for key, value in obs_data.items():
                     episode[key] = value[:n_steps]
+                for key, value in gripper_obs_data.items():
+                    episode[key] = value[:n_steps]
                 self.replay_buffer.add_episode(episode, compressors='disk')
                 episode_id = self.replay_buffer.n_episodes - 1
                 print(f'Episode {episode_id} saved!')
             
-            self.obs_accumulator = None
+            self.robot_obs_accumulator = None
             self.action_accumulator = None
             self.stage_accumulator = None
+            self.gripper_obs_accumulator = None
 
     def drop_episode(self):
         self.end_episode()
