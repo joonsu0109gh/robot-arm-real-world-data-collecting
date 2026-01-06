@@ -85,12 +85,12 @@ def make_frame(rgb0, rgb1, depth0, depth1,
     ax3 = fig.add_subplot(2, 3, 4)
     ax3.axis('off')
     ax3.set_title('Camera 0 Depth')
-    ax3.imshow(depth0)
+    ax3.imshow(cv2.cvtColor(depth0, cv2.COLOR_BGR2RGB))
 
     ax4 = fig.add_subplot(2, 3, 5)
     ax4.axis('off')
     ax4.set_title('Camera 1 Depth')
-    ax4.imshow(depth1)
+    ax4.imshow(cv2.cvtColor(depth1, cv2.COLOR_BGR2RGB))
 
     # 3D EE trajectory
     ax5 = fig.add_subplot(1, 3, 3, projection='3d')
@@ -168,10 +168,11 @@ if __name__ == "__main__":
 
     robot_eef_pose = zarr_root["data"]["robot_eef_pose"][start:end]     # (T, 6 or 7)
     actions = zarr_root["data"]["action"][start:end]      # (T, A)
+    gripper_position = zarr_root["data"]["gripper_position"][start:end]      # (T, A)
 
     positions = robot_eef_pose[:, :3]      # (T, 3)
     ee_rpy_list = robot_eef_pose[:, 3:6]   # (T, 3)
-    gripper_states = robot_eef_pose[:, 6]  # (T,)
+    gripper_states = gripper_position  # (T,)
 
 
     T = len(positions)

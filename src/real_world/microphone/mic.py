@@ -29,7 +29,7 @@ class Microphone(mp.Process):
         transform=None,
         audio_transform=None,
         device_id=0,
-        num_channel=2,
+        num_channel=1,
         put_fps=None,
         block_size=800,
         audio_sr=48000,
@@ -93,6 +93,7 @@ class Microphone(mp.Process):
         self.receive_latency = receive_latency
         self.device_id = device_id
         self.num_channel = num_channel
+        print(f"[INFO] Microphone device ID: {self.device_id}, num_channel: {self.num_channel}")
         self.put_fps = put_fps
         self.audio_sr = audio_sr
         self.block_size = block_size

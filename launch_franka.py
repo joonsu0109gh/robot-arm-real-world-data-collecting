@@ -5,8 +5,8 @@ import numpy as np
 import torch
 
 class FrankaInterface:
-    def __init__(self):
-        self.robot = RobotInterface('localhost')
+    def __init__(self, ip):
+        self.robot = RobotInterface(ip_address=ip)
 
     def get_ee_pose(self):
         data = self.robot.get_ee_pose()
@@ -43,6 +43,6 @@ class FrankaInterface:
     def terminate_current_policy(self):
         self.robot.terminate_current_policy()
 
-s = zerorpc.Server(FrankaInterface())
+s = zerorpc.Server(FrankaInterface(ip='localhost'))
 s.bind("tcp://0.0.0.0:4242")
 s.run()

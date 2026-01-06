@@ -1,1 +1,36 @@
-.ipynb
+# Python caches / compiled
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyd
+*.so
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Data, artifacts and models
+/data/
+data/
+output/
+logs/
+checkpoints/
+models/
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.npy
+
+# Environments, editor and test
+.env
+.venv/
+venv/
+.Python
+pip-wheel-metadata/
+.pytest_cache/
+.vscode/
+.idea/
+
+# Misc
+.DS_Store

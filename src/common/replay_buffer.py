@@ -451,12 +451,20 @@ class ReplayBuffer:
 
         curr_len = self.n_steps
         episode_length = None
+        length_mismatch = []
         for key, value in data.items():
             assert(len(value.shape) >= 1)
             if episode_length is None:
                 episode_length = len(value)
             else:
-                assert(episode_length == len(value))
+                if episode_length != len(value):
+                    length_mismatch.append((key, len(value), episode_length))
+        
+        if length_mismatch:
+            error_msg = "Episode data has inconsistent lengths:\n"
+            for key, actual_len, expected_len in length_mismatch:
+                error_msg += f"  '{key}': {actual_len} (expected {expected_len})\n"
+            raise ValueError(error_msg)
         new_len = curr_len + episode_length
 
         for key, value in data.items():

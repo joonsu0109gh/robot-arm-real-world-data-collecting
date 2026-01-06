@@ -28,11 +28,11 @@ from src.real_world.keystroke_counter import (
     KeystrokeCounter, Key, KeyCode
 )
 
-# python demo_real_robot.py --output /home/rvi/data_collecting_pipeline/data --robot_ip 172.16.0.2 --teleop_mode xbox_controller --robot_model fr3
+# python demo_real_robot.py --output ./data --robot_ip 172.16.0.2 --teleop_mode xbox_controller --robot_model fr3
 @click.command()
-@click.option('--output', '-o', required=True, help="Directory to save demonstration dataset.")
-@click.option('--robot_ip', '-ri', required=True, help="UR5's IP address e.g. 192.168.0.204")
-@click.option('--gripper_ip', default='172.24.95.17')
+@click.option('--output', '-o', default='./data', required=True, help="Directory to save demonstration dataset.")
+@click.option('--robot_ip', '-ri', default='192.168.50.2', required=True, help="UR5's IP address e.g. 192.168.0.204")
+@click.option('--gripper_ip', default='192.168.50.2')
 @click.option('--vis_camera_idx', default=0, type=int, help="Which RealSense camera to visualize.")
 @click.option('--init_joints', '-j', is_flag=True, default=False, help="Whether to initialize robot joint configuration in the beginning.")
 @click.option('--frequency', '-f', default=20, type=float, help="Control frequency in Hz.")
@@ -43,15 +43,13 @@ from src.real_world.keystroke_counter import (
 
 def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, command_latency, teleop_mode, robot_model, enable_depth):
     dt = 1/frequency
-    max_gripper_width = 0.08  # in meters
-    min_gripper_width = 0.05  # in meters
 
     # Select controller class based on teleop_mode
     if teleop_mode == "spacemouse":
-        from src.real_world.controller.teleop_device.spacemouse_shared_memory import Spacemouse
+        from src.real_world.teleop_device.spacemouse_shared_memory import Spacemouse
         ControllerClass = Spacemouse
     elif teleop_mode == "xbox_controller":
-        from src.real_world.controller.teleop_device.xbox_controller_shared_memory import XboxController
+        from src.real_world.teleop_device.xbox_controller_shared_memory import XboxController
         ControllerClass = XboxController 
     # elif teleop == "vr":
     #     ControllerClass = VRController
@@ -64,8 +62,10 @@ def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, c
             RealEnv(
                 output_dir=output, 
                 robot_ip=robot_ip, 
+                gripper_ip=gripper_ip,
+                n_obs_steps=2,
                 # recording resolution
-                obs_image_resolution=(256,256),
+                obs_image_resolution=(640,480),
                 frequency=frequency,
                 init_joints=init_joints,
                 enable_multi_cam_vis=True,
@@ -91,19 +91,20 @@ def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, c
             env.realsense.set_white_balance(white_balance=None)
 
             print('Setting up the real robot environment...')
-            time.sleep(4.0)
+            time.sleep(3.0)
 
             time.sleep(1.0)
             print('Ready!')
 
             state = env.get_robot_state()
-            target_pose = state['TargetTCPPose']
+
+            target_pose = state['ActualTCPPose']
+
             t_start = time.monotonic()
             iter_idx = 0
-            gripper_target_pos = np.array(max_gripper_width, dtype=np.float64).reshape(1)  # 0: open, 1: close
             stop = False
             is_recording = False
-            action = np.zeros((7,))
+            action = np.ones((7,))
 
             while not stop:
                 # calculate timing
@@ -172,16 +173,16 @@ def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, c
 
                 action[:6] = target_pose
 
-                if controller.is_button_pressed(0):
-                    target_pose[-1] = max_gripper_width
-                elif controller.is_button_pressed(1):
-                    target_pose[-1] = min_gripper_width
+                if controller.is_button_pressed(0): # A
+                    action[-1] = 0.0
+                elif controller.is_button_pressed(1):   # B
+                    action[-1] = 1.0
                 else:
                     pass
 
                 # execute teleop command
                 env.exec_actions(
-                    actions=[target_pose],
+                    actions=[action],
                     timestamps=[t_command_target-time.monotonic()+time.time()],
                     stages=[stage])
                 precise_wait(t_cycle_end)

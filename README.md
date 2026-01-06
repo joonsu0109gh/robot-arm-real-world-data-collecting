@@ -10,19 +10,23 @@ It supports **Franka Research 3 (FR3)** control, **Xbox controller teleoperation
 ### Dependencies
 
 * **Diffusion Policy (Real Robot setup)**
-  This repository is based on the official Diffusion Policy implementation for real robots:
+  This repository is built on top of the official Diffusion Policy implementation for real robots:
 
   👉 [https://github.com/real-stanford/diffusion_policy?tab=readme-ov-file#-real-robot](https://github.com/real-stanford/diffusion_policy?tab=readme-ov-file#-real-robot)
 
-* **ManiWAV**
-  This repository is based on the official Diffusion Policy implementation for real robots:
-
-  👉 [https://github.com/real-stanford/maniwav/tree/main](https://github.com/real-stanford/maniwav/tree/main)
-
 * **Franky (Franka robot control library)**
-  Robot control is implemented using the Franky library:
+  Franka robot control is implemented using the Franky library:
 
   👉 [https://github.com/TimSchneider42/franky](https://github.com/TimSchneider42/franky)
+
+* **Intel RealSense SDK**
+  RGB-D camera support via RealSense SDK for D405, D415, and D435 cameras.
+
+* **NUC-based setup**
+  For NUC-based robot control, refer to the Universal Manipulation Interface (UMI) setup guide:
+
+  👉 [https://github.com/real-stanford/universal_manipulation_interface/blob/main/franka_instruction.md](https://github.com/real-stanford/universal_manipulation_interface/blob/main/franka_instruction.md)
+
 
 Please follow the installation instructions in the above repositories before running this code.
 
@@ -41,14 +45,20 @@ Please follow the installation instructions in the above repositories before run
  * ✅ Added **Realsense D405** support
  * ✅ Fix **Franka Research 3 (FR3)** control delay
 
-**Depth data collection example:**
+### ver 0.3
+* ✅ Added **audio data collection** support
+* ✅ Added **Franka Gripper** control support
+* ✅ Fixed **Franka Research 3 (FR3)** control on NUC-based setup
 
-![Depth Visualization](image.png)
+
+
+**Data collection example:**
+
 
 ---
 
 ## Run
-
+- Data collection and teleoperation can be started using the `demo_real_robot.py` script.
 ```bash
 python demo_real_robot.py \
   --output {path/to/data/dir} \
@@ -57,13 +67,17 @@ python demo_real_robot.py \
   --robot_model {fr3}
 ```
 
-### Arguments
+- Debug collected data using the `debug_data_video_generation_audio.py` script.
+[![Data Visualization](https://img.youtube.com/vi/vae63OZTZ1A/maxresdefault.jpg)](https://youtu.be/vae63OZTZ1A)
 
-* `-o` : Output directory for collected data
-* `--robot_ip` : IP address of the robot controller
-* `--teleop_mode` : Teleoperation mode (`xbox_controller`)
-* `--robot_model` : Robot model (`fr3`)
+```bash
+python debug_data_video_generation_audio.py
+```
 
+- Convert .mp4 data to image sequences.
+```bash
+python generate_replay_buffer.py /home/rvi/projects/robot-arm-real-world-data-collecting/data -o /home/rvi/projects/robot-arm-real-world-data-collecting/data/replay_buffer.zarr
+```
 ---
 
 ## Troubleshooting
@@ -76,19 +90,22 @@ python demo_real_robot.py \
   ```
 
 * **Tested hardware setup**
-
   * Franka Research 3 (FR3)
   * Xbox controller
   * Intel RealSense D435 × 2
+
+* **Tresh audio data collection**
+  * Check `pavucontrol` settings for microphone input source.
+    * `systemctl --user stop pulseaudio`
+
 
 Other configurations are not yet fully validated.
 
 ---
 
 ## To Do
-
-* ⏳ Add **multi-modal data collection pipeline** (audio, tactile, etc.)
 * ⏳ Add **VR-based teleoperation mode**
 * ⏳ Add **xArm 7 control support**
 * ⏳ Add **Dexterous hand support**
 * ⏳ Add **Data convertion to RLDS**
+* ⏳ Fix to more **Multi-modal adaptable** codebase

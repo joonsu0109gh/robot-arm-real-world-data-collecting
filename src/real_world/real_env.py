@@ -42,14 +42,12 @@ class RealEnv:
             output_dir,
             robot_ip,
             gripper_ip,
-            gripper_port=4243,
             # env params
             frequency=10,
             n_obs_steps=2,
-            audio_n_obs_steps=20,
             # obs
-            obs_image_resolution=(256,256),
-            max_obs_buffer_size=30,
+            obs_image_resolution=(640,480),
+            max_obs_buffer_size=60,
             camera_serial_numbers=None,
             obs_key_map=DEFAULT_OBS_KEY_MAP,
             obs_float32=False,
@@ -60,11 +58,11 @@ class RealEnv:
             tcp_offset=0.13,
             init_joints=False,
             # video capture params
-            video_capture_fps=30,
+            video_capture_fps=60,
             video_capture_resolution=(640,480),
             # audio capture params
-            audio_device_id=0,
-            audio_channels=2,
+            audio_device_id=None,
+            audio_channels=1,
             audio_sr=48000,
             block_size=800,
             audio_n_obs_steps=20,
@@ -225,20 +223,25 @@ class RealEnv:
         elif robot_model == 'fr3':
             from src.real_world.robot.franka_interpolation_controller import FrankaInterpolationController
             robot = FrankaInterpolationController(
-            shm_manager=shm_manager,
-            robot_ip=robot_hostname,
-            frequency=100,
-            Kx_scale=5.0,
-            Kxd_scale=2.0,
-            verbose=False
-        )
+                            shm_manager=shm_manager,
+                            robot_ip=robot_ip,
+                            frequency=100,
+                            Kx_scale=5.0,
+                            Kxd_scale=2.0,
+                            # Add these parameters to match your new FrankaInterpolationController logic
+                            max_pos_speed=max_pos_speed * cube_diag,
+                            max_rot_speed=max_rot_speed * cube_diag,
+                            joints_init=[-0.0026, -0.7855, 0.0011, -2.3576, 0.0038, 1.5738, 0.7780],
+                            joints_init_duration=3.0, # <--- This fixes the TypeError
+                            verbose=False
+                        )
+            print(f'Initialized real robot controller: {robot_model}')
         else:
             raise ValueError(f'Unknown robot model: {robot_model}')
 
         gripper = FrankaGripperController(
             shm_manager=shm_manager,
             nuc_ip=gripper_ip,
-            nuc_port=gripper_port,
             use_meters=False,
             verbose=False,
         )
@@ -473,15 +476,17 @@ class RealEnv:
         new_actions = actions[is_new]
         new_timestamps = timestamps[is_new]
         new_stages = stages[is_new]
+        print('Gripper action scheduled:', new_actions)
 
         # schedule waypoints
         for i in range(len(new_actions)):
             r_actions = new_actions[i,:6]
-            g_actions = new_actions[i,6:] + 1
+            g_actions = new_actions[i,6:]
             self.robot.schedule_waypoint(
                 pose=r_actions,
                 target_time=new_timestamps[i]
             )
+            # debug g_actions
             self.gripper.schedule_waypoint(
                 pos=g_actions,
                 target_time=new_timestamps[i]-0.02
@@ -577,13 +582,21 @@ class RealEnv:
             actions = self.action_accumulator.actions
             action_timestamps = self.action_accumulator.timestamps
             stages = self.stage_accumulator.actions
-            n_steps = min(len(obs_timestamps), len(action_timestamps))
+            
+            # Compute minimum length across all data sources
+            n_steps = min(
+                len(robot_obs_timestamps), 
+                len(action_timestamps),
+                len(gripper_obs_timestamps),
+                len(stages)
+            )
+            
             if n_steps > 0:
                 episode = dict()
-                episode['timestamp'] = obs_timestamps[:n_steps]
+                episode['timestamp'] = robot_obs_timestamps[:n_steps]
                 episode['action'] = actions[:n_steps]
                 episode['stage'] = stages[:n_steps]
-                for key, value in obs_data.items():
+                for key, value in robot_obs_data.items():
                     episode[key] = value[:n_steps]
                 for key, value in gripper_obs_data.items():
                     episode[key] = value[:n_steps]
