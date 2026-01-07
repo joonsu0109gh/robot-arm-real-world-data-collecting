@@ -16,6 +16,7 @@ data_local/
 raw_data/
 output/
 logs/
+wandb/
 checkpoints/
 models/
 *.pt
