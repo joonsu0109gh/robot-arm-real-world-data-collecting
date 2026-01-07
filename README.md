@@ -97,6 +97,8 @@ python generate_replay_buffer.py /home/rvi/projects/robot-arm-real-world-data-co
 * **Tresh audio data collection**
   * Check `pavucontrol` settings for microphone input source.
     * `systemctl --user stop pulseaudio`
+    * `python -m sounddevice`
+
 
 
 Other configurations are not yet fully validated.

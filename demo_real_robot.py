@@ -30,7 +30,7 @@ from src.real_world.keystroke_counter import (
 
 # python demo_real_robot.py --output ./data --robot_ip 172.16.0.2 --teleop_mode xbox_controller --robot_model fr3
 @click.command()
-@click.option('--output', '-o', default='./data', required=True, help="Directory to save demonstration dataset.")
+@click.option('--output', '-o', default='./demo', required=True, help="Directory to save demonstration dataset.")
 @click.option('--robot_ip', '-ri', default='192.168.50.2', required=True, help="UR5's IP address e.g. 192.168.0.204")
 @click.option('--gripper_ip', default='192.168.50.2')
 @click.option('--vis_camera_idx', default=0, type=int, help="Which RealSense camera to visualize.")

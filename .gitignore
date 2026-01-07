@@ -12,6 +12,8 @@ __pycache__/
 # Data, artifacts and models
 /data/
 data/
+data_local/
+raw_data/
 output/
 logs/
 checkpoints/

@@ -1,6 +1,7 @@
 from typing import List, Tuple, Optional, Dict
 import math
 import numpy as np
+import collections
 
 
 def get_accumulate_timestamp_idxs(
@@ -220,3 +221,20 @@ class TimestampActionAccumulator:
             self.action_buffer[global_idxs] = actions[local_idxs]
             self.timestamp_buffer[global_idxs] = timestamps[local_idxs]
             self.size = max(self.size, this_max_size)
+
+
+class ObsAccumulator:
+    def __init__(self):
+        self.data = collections.defaultdict(list)
+        self.timestamps = collections.defaultdict(list)
+    
+    def put(self, data: Dict[str, np.ndarray], timestamps: np.ndarray):
+        """
+        data:
+            key: T,*
+        """
+        for key, value in data.items():
+            for i, t in enumerate(timestamps):
+                if (key not in self.timestamps) or (self.timestamps[key][-1] < t):
+                    self.timestamps[key].append(t)
+                    self.data[key].append(value[i])

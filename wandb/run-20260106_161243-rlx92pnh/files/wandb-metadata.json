@@ -1,0 +1,213 @@
+{
+    "os": "Linux-6.8.0-90-generic-x86_64-with-glibc2.35",
+    "python": "3.9.18",
+    "heartbeatAt": "2026-01-06T07:12:44.566026",
+    "startedAt": "2026-01-06T07:12:43.544150",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--config-name",
+        "train_diffusion_unet_maniwav_workspace",
+        "task.dataset_path=data/replay_buffer.zarr.zip",
+        "training.num_epochs=60",
+        "dataloader.batch_size=64",
+        "val_dataloader.batch_size=64",
+        "training.device=0"
+    ],
+    "state": "running",
+    "program": "/home/rvi/projects/robot-arm-real-world-data-collecting/train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/joonsu0109gh/robot-arm-real-world-data-collecting.git",
+        "commit": "0cb34e70995682ee08a44c3f7f633bc02b498b33"
+    },
+    "email": "joonsu0109@gmail.com",
+    "root": "/home/rvi/projects/robot-arm-real-world-data-collecting",
+    "host": "rvi-MS-7E01",
+    "username": "rvi",
+    "executable": "/home/rvi/anaconda3/envs/maniwav/bin/python",
+    "cpu_count": 24,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 2094.15471875,
+        "min": 800.0,
+        "max": 5000.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 4769.411,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 1329.141,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 4300.0,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 4451.736,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 4312.662,
+            "min": 800.0,
+            "max": 6000.0
+        },
+        {
+            "current": 1266.077,
+            "min": 800.0,
+            "max": 6000.0
+        },
+        {
+            "current": 4202.721,
+            "min": 800.0,
+            "max": 6000.0
+        },
+        {
+            "current": 4244.979,
+            "min": 800.0,
+            "max": 6000.0
+        },
+        {
+            "current": 2313.564,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 4023.413,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 1635.878,
+            "min": 800.0,
+            "max": 5600.0
+        },
+        {
+            "current": 1325.396,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 3263.942,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 3233.333,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 3724.404,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 3250.428,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 3655.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 1847.185,
+            "min": 800.0,
+            "max": 4300.0
+        }
+    ],
+    "disk": {
+        "total": 1832.2072448730469,
+        "used": 80.21316528320312
+    },
+    "gpu": "NVIDIA RTX A6000",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA RTX A6000",
+            "memory_total": 51527024640
+        }
+    ],
+    "memory": {
+        "total": 125.56324768066406
+    }
+}

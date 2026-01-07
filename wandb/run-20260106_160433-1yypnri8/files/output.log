@@ -1,0 +1,4 @@
+Error executing job with overrides: ['task.dataset_path=data/replay_buffer.zarr.zip', 'training.num_epochs=60', 'dataloader.batch_size=64', 'val_dataloader.batch_size=64', 'training.device=0']
+Error locating target 'model.dataset.umi_maniwav_dataset.UmiManiWAVDataset', see chained exception above.
+full_key: task.dataset
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
