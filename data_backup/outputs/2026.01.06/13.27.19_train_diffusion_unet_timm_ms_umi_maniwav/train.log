@@ -1,0 +1,2 @@
+[2026-01-06 13:27:19,805][hydra.utils][ERROR] - Error initializing class at model.workspace.train_diffusion_unet_maniwav_workspace.TrainDiffusionUnetManiWAVWorkspace: Error loading 'model.workspace.train_diffusion_unet_maniwav_workspace.TrainDiffusionUnetManiWAVWorkspace':
+ImportError("cannot import name 'cached_download' from 'huggingface_hub' (/home/rvi/anaconda3/envs/maniwav/lib/python3.9/site-packages/huggingface_hub/__init__.py)")

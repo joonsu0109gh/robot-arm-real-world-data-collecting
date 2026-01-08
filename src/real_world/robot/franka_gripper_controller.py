@@ -88,6 +88,7 @@ class FrankaGripperController(mp.Process):
         # last gripper state to give command
         self.grasping = False
 
+
     # ========= launch method ===========
     def start(self, wait=True):
         super().start()
@@ -122,10 +123,10 @@ class FrankaGripperController(mp.Process):
         self.stop()
         
     # ========= command methods ============
-    def schedule_waypoint(self, pos: float, target_time: float):
+    def schedule_waypoint(self, pose: float, target_time: float):
         message = {
             'cmd': Command.SCHEDULE_WAYPOINT.value,
-            'target_pos': pos,
+            'target_pos': pose,
             'target_time': target_time
         }
         self.input_queue.put(message)
@@ -161,6 +162,9 @@ class FrankaGripperController(mp.Process):
         }
         return info
 
+    def go_to_home(self):
+        client.open(self.grasp_speed)
+
 
     # ========= main loop in process ============
     def run(self):
@@ -168,13 +172,11 @@ class FrankaGripperController(mp.Process):
         try:
             client = zerorpc.Client(timeout=5)
             client.connect(f"tcp://{self.nuc_ip}:{self.nuc_port}")
+            client.open(self.grasp_speed)
+            print(f"[FrankaGripperController] Initialized controller for robot at {self.nuc_ip}:{self.nuc_port}")
+
             if self.verbose:
                 print(f"[FrankaGripperController] Connected to robot at {self.nuc_ip}:{self.nuc_port}")
-
-            # home gripper to initialize
-            client.open(self.grasp_speed)
-            if self.verbose:
-                print(f"[FrankaGripperController] Homing gripper to open position")
 
             # get initial
             curr_info = self.get_gripper_info(client)
@@ -269,6 +271,7 @@ class FrankaGripperController(mp.Process):
                     elif cmd == Command.RESTART_PUT.value:
                         t_start = command['target_time'] - time.time() + time.monotonic()
                         iter_idx = 1
+
                     else:
                         keep_running = False
                         break

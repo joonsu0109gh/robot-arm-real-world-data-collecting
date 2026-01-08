@@ -153,7 +153,7 @@ class FrankaInterpolationController(mp.Process):
         self.ready_event = mp.Event()
         self.input_queue = input_queue
         self.ring_buffer = ring_buffer
-            
+
     def start(self, wait=True):
         super().start()
         if wait:
@@ -219,10 +219,11 @@ class FrankaInterpolationController(mp.Process):
     def run(self):
         if self.soft_real_time:
             os.sched_setscheduler(0, os.SCHED_RR, os.sched_param(20))
-            
-        robot = FrankaInterface(self.robot_ip, self.robot_port)
-
+        
         try:
+            robot = FrankaInterface(self.robot_ip, self.robot_port)
+            print(f"[FrankaPositionalController] Robot moved to home position.")
+
             if self.verbose:
                 print(f"[FrankaPositionalController] Connect to robot: {self.robot_ip}")
             

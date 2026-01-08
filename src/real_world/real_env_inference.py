@@ -504,7 +504,7 @@ class RealEnv:
                 target_time=new_timestamps[i]-r_latency
             )
             self.gripper.schedule_waypoint(
-                pos=g_actions,
+                pose=g_actions,
                 target_time=new_timestamps[i]-g_latency
             )
 

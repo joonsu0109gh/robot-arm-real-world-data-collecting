@@ -1,0 +1,292 @@
+name: train_diffusion_unet_timm_ms
+_target_: model.workspace.train_diffusion_unet_maniwav_workspace.TrainDiffusionUnetManiWAVWorkspace
+task_name: ${task.name}
+shape_meta: ${task.shape_meta}
+exp_name: default
+policy:
+  _target_: model.policy.diffusion_unet_maniwav_policy.DiffusionUnetManiWAVPolicy
+  shape_meta: ${shape_meta}
+  noise_scheduler:
+    _target_: diffusers.DDIMScheduler
+    num_train_timesteps: 50
+    beta_start: 0.0001
+    beta_end: 0.02
+    beta_schedule: squaredcos_cap_v2
+    clip_sample: true
+    set_alpha_to_one: true
+    steps_offset: 0
+    prediction_type: epsilon
+  obs_encoder:
+    _target_: model.model.vision.maniwav_obs_encoder.ManiWAVObsEncoder
+    shape_meta: ${shape_meta}
+    fusion_mode: modality-attention
+    num_heads: 8
+    position_encoding: sinusoidal
+    vision_encoder_cfg:
+      model_name: vit_base_patch16_clip_224.openai
+      pretrained: true
+      frozen: false
+      global_pool: ''
+      downsample_ratio: 32
+      feature_aggregation: null
+      transforms:
+      - type: RandomCrop
+        ratio: 0.95
+      - _target_: torchvision.transforms.ColorJitter
+        brightness: 0.3
+        contrast: 0.4
+        saturation: 0.5
+        hue: 0.08
+      use_group_norm: true
+      share_rgb_model: false
+      imagenet_norm: true
+    audio_encoder_cfg:
+      model_name: ast
+      pretrained: false
+      max_length: 200
+      num_mel_bins: 64
+      global_pool: ''
+      feature_aggregation: null
+      transforms:
+      - _target_: torchaudio.transforms.Resample
+        orig_freq: 48000
+        new_freq: 16000
+      mask_robot: false
+      downsample_ratio: 32
+      use_group_norm: true
+      share_audio_model: false
+      norm_spec:
+        is_norm: true
+        mean: -6.5
+        std: 4.7
+        min: -16.0
+        max: 10.6
+        stats_dir: ${multi_run.run_dir}
+  num_inference_steps: 16
+  obs_as_global_cond: true
+  diffusion_step_embed_dim: 128
+  down_dims:
+  - 256
+  - 512
+  - 1024
+  kernel_size: 5
+  n_groups: 8
+  cond_predict_scale: true
+  input_pertub: 0.1
+ema:
+  _target_: model.model.diffusion.ema_model.EMAModel
+  update_after_step: 0
+  inv_gamma: 1.0
+  power: 0.75
+  min_value: 0.0
+  max_value: 0.9999
+dataloader:
+  batch_size: 64
+  num_workers: 16
+  shuffle: true
+  pin_memory: true
+  persistent_workers: true
+val_dataloader:
+  batch_size: 64
+  num_workers: 16
+  shuffle: false
+  pin_memory: true
+  persistent_workers: true
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 0.0001
+  betas:
+  - 0.95
+  - 0.999
+  eps: 1.0e-08
+  weight_decay: 1.0e-06
+training:
+  device: 0
+  seed: 42
+  debug: false
+  resume: true
+  lr_scheduler: cosine
+  lr_warmup_steps: 500
+  num_epochs: 60
+  gradient_accumulate_every: 1
+  use_ema: true
+  freeze_encoder: false
+  rollout_every: 10
+  checkpoint_every: 10
+  val_every: 5
+  sample_every: 5
+  max_train_steps: null
+  max_val_steps: null
+  tqdm_interval_sec: 1.0
+logging:
+  project: maniwav
+  resume: false
+  mode: online
+  name: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
+  tags:
+  - ${name}
+  - ${task_name}
+  - ${exp_name}
+  id: null
+  group: null
+checkpoint:
+  topk:
+    monitor_key: train_loss
+    mode: min
+    k: 5
+    format_str: epoch={epoch:04d}-train_loss={train_loss:.3f}.ckpt
+  save_last_ckpt: true
+  save_last_snapshot: false
+multi_run:
+  run_dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  wandb_name_base: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
+task:
+  name: umi_maniwav
+  dataset_path: data/replay_buffer.zarr.zip
+  camera_obs_latency: 0.125
+  robot_obs_latency: 0.0001
+  gripper_obs_latency: 0.02
+  dataset_frequeny: 0
+  obs_down_sample_steps: 3
+  low_dim_obs_horizon: 2
+  audio_obs_horizon: 120
+  img_obs_horizon: 2
+  action_horizon: 16
+  shape_meta:
+    obs:
+      camera0_rgb:
+        shape:
+        - 3
+        - 224
+        - 224
+        horizon: ${task.img_obs_horizon}
+        latency_steps: 0
+        down_sample_steps: ${task.obs_down_sample_steps}
+        type: rgb
+      mic_0:
+        shape:
+        - 800
+        horizon: ${task.audio_obs_horizon}
+        latency_steps: 0
+        down_sample_steps: 1
+        type: audio
+        aug:
+        - _target_: model.model.common.noise_aug.NoiseAug
+          noise_folder_path: data/esc-50
+          p: 0.5
+        - _target_: model.model.common.noise_aug.RobotNoiseAug
+          noise_path: data/robot-noise-calib/robot.wav
+          key: mic_0
+          p: 0.5
+      robot0_eef_pos:
+        shape:
+        - 3
+        horizon: ${task.low_dim_obs_horizon}
+        latency_steps: ${eval:'(${task.camera_obs_latency} - ${task.robot_obs_latency})
+          * ${task.dataset_frequeny}'}
+        down_sample_steps: ${task.obs_down_sample_steps}
+        type: low_dim
+      robot0_eef_rot_axis_angle:
+        raw_shape:
+        - 3
+        shape:
+        - 6
+        horizon: ${task.low_dim_obs_horizon}
+        latency_steps: ${eval:'(${task.camera_obs_latency} - ${task.robot_obs_latency})
+          * ${task.dataset_frequeny}'}
+        down_sample_steps: ${task.obs_down_sample_steps}
+        type: low_dim
+        rotation_rep: rotation_6d
+      robot0_gripper_width:
+        shape:
+        - 1
+        horizon: ${task.low_dim_obs_horizon}
+        latency_steps: ${eval:'(${task.camera_obs_latency} - ${task.gripper_obs_latency})
+          * ${task.dataset_frequeny}'}
+        down_sample_steps: ${task.obs_down_sample_steps}
+        type: low_dim
+    action:
+      shape:
+      - 10
+      horizon: ${task.action_horizon}
+      latency_steps: 0
+      down_sample_steps: ${task.obs_down_sample_steps}
+      rotation_rep: rotation_6d
+  task_name: umi_maniwav
+  pose_repr:
+    obs_pose_repr: relative
+    action_pose_repr: relative
+  env_runner:
+    _target_: model.env_runner.real_pusht_image_runner.RealPushTImageRunner
+  dataset:
+    _target_: model.dataset.umi_maniwav_dataset.UmiManiWAVDataset
+    shape_meta:
+      obs:
+        camera0_rgb:
+          shape:
+          - 3
+          - 224
+          - 224
+          horizon: ${task.img_obs_horizon}
+          latency_steps: 0
+          down_sample_steps: ${task.obs_down_sample_steps}
+          type: rgb
+        mic_0:
+          shape:
+          - 800
+          horizon: ${task.audio_obs_horizon}
+          latency_steps: 0
+          down_sample_steps: 1
+          type: audio
+          aug:
+          - _target_: model.model.common.noise_aug.NoiseAug
+            noise_folder_path: data/esc-50
+            p: 0.5
+          - _target_: model.model.common.noise_aug.RobotNoiseAug
+            noise_path: data/robot-noise-calib/robot.wav
+            key: mic_0
+            p: 0.5
+        robot0_eef_pos:
+          shape:
+          - 3
+          horizon: ${task.low_dim_obs_horizon}
+          latency_steps: ${eval:'(${task.camera_obs_latency} - ${task.robot_obs_latency})
+            * ${task.dataset_frequeny}'}
+          down_sample_steps: ${task.obs_down_sample_steps}
+          type: low_dim
+        robot0_eef_rot_axis_angle:
+          raw_shape:
+          - 3
+          shape:
+          - 6
+          horizon: ${task.low_dim_obs_horizon}
+          latency_steps: ${eval:'(${task.camera_obs_latency} - ${task.robot_obs_latency})
+            * ${task.dataset_frequeny}'}
+          down_sample_steps: ${task.obs_down_sample_steps}
+          type: low_dim
+          rotation_rep: rotation_6d
+        robot0_gripper_width:
+          shape:
+          - 1
+          horizon: ${task.low_dim_obs_horizon}
+          latency_steps: ${eval:'(${task.camera_obs_latency} - ${task.gripper_obs_latency})
+            * ${task.dataset_frequeny}'}
+          down_sample_steps: ${task.obs_down_sample_steps}
+          type: low_dim
+      action:
+        shape:
+        - 10
+        horizon: ${task.action_horizon}
+        latency_steps: 0
+        down_sample_steps: ${task.obs_down_sample_steps}
+        rotation_rep: rotation_6d
+    dataset_path: ${task.dataset_path}
+    cache_dir: null
+    pose_repr:
+      obs_pose_repr: relative
+      action_pose_repr: relative
+    action_padding: false
+    temporally_independent_normalization: false
+    repeat_frame_prob: 0.0
+    seed: 42
+    val_ratio: 0.05

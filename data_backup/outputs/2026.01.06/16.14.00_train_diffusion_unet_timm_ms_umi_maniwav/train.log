@@ -1,0 +1,3 @@
+[2026-01-06 16:14:20,078][timm.models._builder][INFO] - Loading pretrained weights from Hugging Face hub (timm/vit_base_patch16_clip_224.openai)
+[2026-01-06 16:14:21,609][model.model.vision.maniwav_obs_encoder][INFO] - number of parameters: 1.904146e+08
+[2026-01-06 16:14:21,889][model.model.diffusion.conditional_unet1d][INFO] - number of parameters: 7.429211e+07

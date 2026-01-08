@@ -2,6 +2,8 @@
 Usage:
 (robodiff)$ python eval_real_robot.py -i data/outputs/2026.01.06/16.14.00_train_diffusion_unet_timm_ms_umi_maniwav/checkpoints/latest.ckpt -o data_local/cup_test_data
 
+python eval_real_robot.py -i data/outputs/2026.01.07/19.51.49_train_diffusion_unet_timm_ms_umi_maniwav/checkpoints/latest.ckpt -o data_local/pick_and_place
+
 ================ Human in control ==============
 Robot movement:
 Move your SpaceMouse to move the robot EEF (locked in xy plane).
@@ -65,7 +67,7 @@ OmegaConf.register_new_resolver("eval", eval, replace=True)
 @click.option('--init_joints', '-j', is_flag=True, default=False, help="Whether to initialize robot joint configuration in the beginning.")
 @click.option('--steps_per_inference', '-si', default=6, type=int, help="Action horizon for inference.")
 @click.option('--max_duration', '-md', default=60, help='Max duration for each epoch in seconds.')
-@click.option('--frequency', '-f', default=20, type=float, help="Control frequency in Hz.")
+@click.option('--frequency', '-f', default=1, type=float, help="Control frequency in Hz.")
 @click.option('--command_latency', '-cl', default=0.01, type=float, help="Latency between receiving SapceMouse command to executing on Robot in Sec.")
 @click.option('--enable_depth', '-d', default=1, type=click.Choice([0, 1]), help="Depth camera on/off.")
 @click.option('--robot_model', '-r', default='fr3', type=click.Choice(['ur5', 'fr3', 'xarm']), help="Robot type.")
@@ -355,7 +357,7 @@ def main(input, output, robot_ip, gripper_ip, match_dataset, match_episode, matc
                     env.start_episode(eval_t_start)
                     # wait for 1/30 sec to get the closest frame actually
                     # reduces overall latency
-                    frame_latency = 1/30
+                    frame_latency = 3
                     precise_wait(eval_t_start - frame_latency, time_func=time.time)
                     print("Started!")
                     iter_idx = 0
@@ -386,8 +388,7 @@ def main(input, output, robot_ip, gripper_ip, match_dataset, match_episode, matc
 
                         # convert policy action to env actions
                         this_target_poses = action
-                        # this_target_poses[:,2] = np.maximum(this_target_poses[:,2], 0.055)
-
+                        this_target_poses[:,2] = np.maximum(this_target_poses[:,2], 0.055)
                         # deal with timing
                         # the same step actions are always the target for
                         action_timestamps = (np.arange(len(action), dtype=np.float64)
@@ -407,6 +408,7 @@ def main(input, output, robot_ip, gripper_ip, match_dataset, match_episode, matc
                             this_target_poses = this_target_poses[is_new]
                             action_timestamps = action_timestamps[is_new]
 
+                        print(f"[Debug] target poses: {this_target_poses}")
 
                         # execute actions
                         env.exec_actions(
@@ -414,6 +416,7 @@ def main(input, output, robot_ip, gripper_ip, match_dataset, match_episode, matc
                             timestamps=action_timestamps,
                             compensate_latency=True
                         )
+                        perv_target_pose = this_target_poses[-1]
                         print(f"Submitted {len(this_target_poses)} steps of actions.")
 
 

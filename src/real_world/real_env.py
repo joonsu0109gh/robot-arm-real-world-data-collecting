@@ -285,7 +285,19 @@ class RealEnv:
     # ======== start-stop API =============
     @property
     def is_ready(self):
-        return self.realsense.is_ready and self.robot.is_ready and self.gripper.is_ready and self.microphone.is_ready
+        if self.realsense.is_ready and self.robot.is_ready and self.gripper.is_ready and self.microphone.is_ready:
+            return True
+        else:
+            print("Environment not ready yet:")
+            if not self.realsense.is_ready:
+                print(" - Realsense not ready")
+            if not self.robot.is_ready:
+                print(" - Robot not ready")
+            if not self.gripper.is_ready:
+                print(" - Gripper not ready")
+            if not self.microphone.is_ready:
+                print(" - Microphone not ready")
+            return False
     
     def start(self, wait=True):
         self.realsense.start(wait=False)
@@ -476,7 +488,6 @@ class RealEnv:
         new_actions = actions[is_new]
         new_timestamps = timestamps[is_new]
         new_stages = stages[is_new]
-        print('Gripper action scheduled:', new_actions)
 
         # schedule waypoints
         for i in range(len(new_actions)):
@@ -488,7 +499,7 @@ class RealEnv:
             )
             # debug g_actions
             self.gripper.schedule_waypoint(
-                pos=g_actions,
+                pose=g_actions,
                 target_time=new_timestamps[i]-0.02
             )
         
@@ -504,6 +515,10 @@ class RealEnv:
                 new_timestamps
             )
     
+    def go_to_home(self):
+        self.robot.go_to_home()
+        self.gripper.go_to_home()
+        
     def get_robot_state(self):
         return self.robot.get_state()
 

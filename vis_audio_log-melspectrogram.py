@@ -5,11 +5,40 @@ import librosa
 import librosa.display
 import torchaudio
 import matplotlib.pyplot as plt
+import sounddevice as sd
+import soundfile as sf
+
+# -----------------------------
+# Recordings
+# -----------------------------
+AUDIO_PATH = "./recorded_audio.wav"
+
+RECORD_SECONDS = 5        # seconds
+RECORD_SR = 48000         # original recording SR (keep high)
+CHANNELS = 1              # mono
+
+sd.default.device = 16
+
+
+print("[Recording] Start...")
+audio = sd.rec(
+    int(RECORD_SECONDS * RECORD_SR),
+    samplerate=RECORD_SR,
+    channels=CHANNELS,
+    dtype="float32"
+)
+sd.wait()
+print("[Recording] Done.")
+
+# Save wav
+sf.write(AUDIO_PATH, audio.squeeze(), RECORD_SR)
+print(f"[Saved] {AUDIO_PATH}")
+
 
 # -----------------------------
 # Configuration
 # -----------------------------
-AUDIO_PATH = "/home/rvi/projects/robot-arm-real-world-data-collecting/data/videos/0/audio.wav"
+
 TARGET_SR = 16000
 N_MELS = 64
 N_FFT = int(TARGET_SR * 0.025)   # 25 ms window

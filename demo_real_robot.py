@@ -104,6 +104,7 @@ def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, c
             iter_idx = 0
             stop = False
             is_recording = False
+            is_initialize = False
             action = np.ones((7,))
 
             while not stop:
@@ -133,6 +134,9 @@ def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, c
                         key_counter.clear()
                         is_recording = False
                         print('Stopped.')
+                    elif key_stroke == KeyCode(char='h'):
+                        # go back to home position
+                        is_initialize = True
                     elif key_stroke == Key.backspace:
                         # Delete the most recent recorded episode
                         if click.confirm('Are you sure to drop an episode?'):
@@ -172,6 +176,13 @@ def main(output, robot_ip, gripper_ip, vis_camera_idx, init_joints, frequency, c
                     target_pose[3:6])).as_rotvec()
 
                 action[:6] = target_pose
+
+                if is_initialize:
+                    target_pose = np.array([0.54, 0.04, 0.58, -1.185, 1.189, -1.189])
+                    action[:6] = target_pose
+                    action[-1] = 1.0  # open gripper
+                    is_initialize = False
+
 
                 if controller.is_button_pressed(0): # A
                     action[-1] = 0.0

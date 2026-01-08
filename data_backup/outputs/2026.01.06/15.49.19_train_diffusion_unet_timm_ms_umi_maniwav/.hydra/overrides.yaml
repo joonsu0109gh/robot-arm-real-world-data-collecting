@@ -1,0 +1,5 @@
+- task.dataset_path=data/replay_buffer.zarr.zip
+- training.num_epochs=60
+- dataloader.batch_size=64
+- val_dataloader.batch_size=64
+- training.device=0

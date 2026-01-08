@@ -388,5 +388,5 @@ if __name__ == "__main__":
 
 
 '''
-python generate_replay_buffer.py /home/rvi/projects/robot-arm-real-world-data-collecting/data -o /home/rvi/projects/robot-arm-real-world-data-collecting/processed_data/result_buffer.zarr.zip
+python generate_replay_buffer.py /home/rvi/projects/robot-arm-real-world-data-collecting/demo -o /home/rvi/projects/robot-arm-real-world-data-collecting/data/replay_buffer.zarr.zip
 '''
